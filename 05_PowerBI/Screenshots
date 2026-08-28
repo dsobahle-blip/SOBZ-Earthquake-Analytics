@@ -1,0 +1,47 @@
+# 📊 Power BI Dashboard
+
+This folder contains the **Power BI dashboard** for the SOBZ Earthquake Analytics project.
+
+## 🎯 Dashboard Features
+
+The dashboard provides interactive visualizations of global earthquake data, including:
+
+- **🗺️ Global Heatmap**: Real-time visualization of earthquake epicenters with depth-based sizing.
+- **📈 Magnitude Trends**: Time-series analysis showing frequency of Minor, Light, Moderate, and Major quakes.
+- **📉 Depth Correlation**: Analysis of earthquake depth vs. frequency to identify deep-seismic vs. shallow events.
+- **🌍 Regional Risk**: Top 10 most active countries/regions with drill-down capabilities.
+- **⚡ Live KPIs**: Total Events, Max Magnitude, Average Depth, and Recent Activity Alerts.
+
+## 📸 Dashboard Screenshots
+
+*(Replace the placeholders below with real screenshots of your Power BI dashboard)*
+
+| Overview Map | Magnitude Trends |
+|:------------:|:----------------:|
+| ![Overview Map](screenshots/overview_map.png) | ![Magnitude Trends](screenshots/magnitude_trends.png) |
+
+| Depth Analysis | Regional Hotspots |
+|:--------------:|:-----------------:|
+| ![Depth Analysis](screenshots/depth_analysis.png) | ![Regional Hotspots](screenshots/regional_hotspots.png) |
+
+## 🛠️ How to Use
+
+1. **Connect Power BI** to the **Gold Delta tables** in your Fabric Lakehouse:
+   - `gold.magnitude_categories`
+   - `gold.daily_counts`
+   - `gold.regional_hotspots`
+   - `gold.depth_analysis`
+2. **Import the `.pbix` file** (if available) or build a new report.
+3. **Apply filters** (date range, magnitude, region) to explore the data.
+4. **Export insights** for stakeholder reporting.
+
+## 📝 DAX Measures
+
+Key DAX measures used in the dashboard:
+
+```dax
+Total Quakes = COUNTROWS('gold.magnitude_categories')
+Avg Magnitude = AVERAGE('gold.magnitude_categories'[magnitude])
+Max Magnitude = MAX('gold.magnitude_categories'[magnitude])
+Total Depth = SUM('gold.magnitude_categories'[depth])
+Avg Depth = AVERAGE('gold.magnitude_categories'[depth])
