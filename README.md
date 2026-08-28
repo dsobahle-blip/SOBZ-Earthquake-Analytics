@@ -690,7 +690,7 @@ The goal is to demonstrate the complete lifecycle of a modern data product — *
 
 # 👤 Author
 
-**SOBZ**
+**Dumisani Sobahle**
 
 Data Analytics | Data Engineering | Microsoft Fabric
 
