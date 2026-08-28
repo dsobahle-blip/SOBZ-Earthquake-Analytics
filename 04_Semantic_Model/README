@@ -1,0 +1,58 @@
+# 📊 Semantic Model
+
+This folder documents the **Power BI Semantic Model** used to power the SOBZ Earthquake Analytics dashboard.
+
+## 🎯 Model Overview
+
+The semantic model connects to the **Gold layer Delta tables** in Microsoft Fabric and provides:
+- **Relationships**: Between magnitude categories, daily counts, regional hotspots, and depth analysis.
+- **DAX Measures**: For KPIs like Total Quakes, Avg Magnitude, Max Magnitude, etc.
+- **Time Intelligence**: For trend analysis (YoY, MoM, custom date ranges).
+
+## 📐 Data Model
+
+### Tables & Relationships
+
+| Table | Description | Relationships |
+|-------|-------------|---------------|
+| `magnitude_categories` | Earthquake events with magnitude categories | → `daily_counts`, `regional_hotspots` |
+| `daily_counts` | Daily aggregated counts | ← `magnitude_categories` |
+| `regional_hotspots` | Regional earthquake summaries | ← `magnitude_categories` |
+| `depth_analysis` | Depth-based analysis | ← `magnitude_categories` |
+| `Date` (Calendar Table) | Time intelligence | → All tables |
+
+*(Add a diagram if you have one)*
+
+## 🧮 Key DAX Measures
+
+```dax
+// Total Earthquakes
+Total Quakes = COUNTROWS('magnitude_categories')
+
+// Average Magnitude
+Avg Magnitude = AVERAGE('magnitude_categories'[magnitude])
+
+// Maximum Magnitude
+Max Magnitude = MAX('magnitude_categories'[magnitude])
+
+// Total Depth
+Total Depth = SUM('magnitude_categories'[depth])
+
+// Average Depth
+Avg Depth = AVERAGE('magnitude_categories'[depth])
+
+// YoY Growth
+YoY Growth = 
+VAR CurrentYear = [Total Quakes]
+VAR PreviousYear = CALCULATE([Total Quakes], SAMEPERIODLASTYEAR('Date'[Date]))
+RETURN DIVIDE(CurrentYear - PreviousYear, PreviousYear, 0)
+
+// Recent Events (Last 24h)
+Recent Events (24h) = 
+CALCULATE(
+    [Total Quakes],
+    FILTER(
+        ALL('magnitude_categories'[event_time]),
+        'magnitude_categories'[event_time] >= NOW() - TIME(24, 0, 0)
+    )
+)
