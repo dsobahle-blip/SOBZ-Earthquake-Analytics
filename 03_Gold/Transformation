@@ -1,0 +1,117 @@
+# 03_Gold/gold_transformation.py
+# Purpose: Create analytical Gold tables from Silver layer
+# Technology: PySpark (Microsoft Fabric Notebook / Spark)
+
+from pyspark.sql import functions as F
+from pyspark.sql.types import StringType
+
+def create_gold_tables(spark):
+    """
+    Reads Silver table, creates aggregated Gold tables, and saves them.
+    """
+    
+    # 1. Read Silver Data
+    print("📥 Reading clean data from Silver layer...")
+    silver_path = "abfss://SOBZ_Lakehouse.lakehouse.dfs.fabric.microsoft.com/silver/clean_quakes"
+    df_silver = spark.read.format("delta").load(silver_path)
+    
+    if df_silver.rdd.isEmpty():
+        print("⚠️ Silver layer is empty. Run Silver transformation first.")
+        return
+
+    print(f"✅ Loaded {df_silver.count()} clean records from Silver.")
+
+    # 2. Create Magnitude Categories
+    print("📊 Creating magnitude categories...")
+    df_magnitude = df_silver.withColumn(
+        "magnitude_category",
+        F.when(F.col("magnitude") < 1.0, "Micro")
+         .when(F.col("magnitude") < 3.0, "Minor")
+         .when(F.col("magnitude") < 4.5, "Light")
+         .when(F.col("magnitude") < 6.0, "Moderate")
+         .when(F.col("magnitude") < 7.0, "Strong")
+         .when(F.col("magnitude") < 8.0, "Major")
+         .otherwise("Great")
+    )
+    
+    # Save Magnitude Categories Table
+    gold_mag_path = "abfss://SOBZ_Lakehouse.lakehouse.dfs.fabric.microsoft.com/gold/magnitude_categories"
+    df_magnitude.select("event_id", "magnitude", "magnitude_category", "location", "event_time", "depth", "quake_type") \
+      .write.format("delta").mode("overwrite").save(gold_mag_path)
+    print(f"✅ Saved magnitude categories: {df_magnitude.count()} records.")
+
+    # 3. Create Daily Earthquake Counts (Time-Series)
+    print("📈 Creating daily earthquake counts...")
+    df_daily = df_silver.withColumn("date", F.to_date("event_time")) \
+      .groupBy("date") \
+      .agg(
+          F.count("*").alias("daily_count"),
+          F.max("magnitude").alias("max_magnitude"),
+          F.avg("magnitude").alias("avg_magnitude"),
+          F.sum("depth").alias("total_depth"),
+          F.avg("depth").alias("avg_depth")
+      ) \
+      .orderBy("date")
+    
+    gold_daily_path = "abfss://SOBZ_Lakehouse.lakehouse.dfs.fabric.microsoft.com/gold/daily_counts"
+    df_daily.write.format("delta").mode("overwrite").save(gold_daily_path)
+    print(f"✅ Saved daily counts: {df_daily.count()} records.")
+
+    # 4. Create Regional Hotspots (Top Countries/Regions)
+    print("🌍 Creating regional hotspots...")
+    # Extract country/region from location string (simple approach: split by comma)
+    df_regional = df_silver.withColumn("region", F.split("location", ",")[0]) \
+      .groupBy("region") \
+      .agg(
+          F.count("*").alias("quake_count"),
+          F.max("magnitude").alias("max_magnitude"),
+          F.avg("magnitude").alias("avg_magnitude"),
+          F.avg("depth").alias("avg_depth")
+      ) \
+      .orderBy(F.col("quake_count").desc())
+    
+    gold_regional_path = "abfss://SOBZ_Lakehouse.lakehouse.dfs.fabric.microsoft.com/gold/regional_hotspots"
+    df_regional.write.format("delta").mode("overwrite").save(gold_regional_path)
+    print(f"✅ Saved regional hotspots: {df_regional.count()} regions.")
+
+    # 5. Create Depth Analysis (Shallow vs. Deep)
+    print("📉 Creating depth analysis...")
+    df_depth = df_silver.withColumn(
+        "depth_category",
+        F.when(F.col("depth") <= 70, "Shallow (0-70km)")
+         .when(F.col("depth") <= 300, "Intermediate (70-300km)")
+         .otherwise("Deep (300km+)")
+    ) \
+      .groupBy("depth_category") \
+      .agg(
+          F.count("*").alias("quake_count"),
+          F.avg("magnitude").alias("avg_magnitude"),
+          F.avg("depth").alias("avg_depth")
+      ) \
+      .orderBy("avg_depth")
+    
+    gold_depth_path = "abfss://SOBZ_Lakehouse.lakehouse.dfs.fabric.microsoft.com/gold/depth_analysis"
+    df_depth.write.format("delta").mode("overwrite").save(gold_depth_path)
+    print(f"✅ Saved depth analysis: {df_depth.count()} categories.")
+
+    # 6. Summary
+    print("\n🎉 Gold layer complete! Created the following tables:")
+    print("   - magnitude_categories")
+    print("   - daily_counts")
+    print("   - regional_hotspots")
+    print("   - depth_analysis")
+    print("\n📊 These tables are ready for Power BI visualization!")
+
+    return {
+        "magnitude_categories": df_magnitude.count(),
+        "daily_counts": df_daily.count(),
+        "regional_hotspots": df_regional.count(),
+        "depth_analysis": df_depth.count()
+    }
+
+# Run the transformation
+if __name__ == "__main__":
+    try:
+        create_gold_tables(spark)
+    except NameError:
+        print("⚠️ 'spark' session not found. Run this in a Fabric Notebook or initialize SparkSession.")
