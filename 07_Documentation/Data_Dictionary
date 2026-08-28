@@ -1,0 +1,70 @@
+# 📚 Data Dictionary
+
+This document defines the schema and business logic for all tables in the **SOBZ Earthquake Analytics** project.
+
+## 🏗️ Layer: Bronze (Raw)
+
+| Column | Type | Description |
+| :--- | :--- | :--- |
+| `features` | Array | Nested array containing raw GeoJSON features. |
+| `properties` | Object | Metadata (mag, place, time, type, etc.). |
+| `geometry` | Object | Spatial data (type, coordinates). |
+
+## 🏗️ Layer: Silver (Cleaned)
+
+*Table Name: `clean_quakes`*
+
+| Column | Type | Description | Business Logic |
+| :--- | :--- | :--- | :--- |
+| `event_id` | string | Unique ID from USGS. | Primary Key. |
+| `magnitude` | double | Earthquake magnitude. | Raw value from API. |
+| `location` | string | Human-readable place name. | e.g., "10km N of Tokyo". |
+| `quake_type` | string | Type of seismic event. | e.g., "earthquake", "explosion". |
+| `event_time` | timestamp | UTC time of occurrence. | Converted from Unix ms. |
+| `longitude` | double | Geographic longitude. | Extracted from `coordinates[0]`. |
+| `latitude` | double | Geographic latitude. | Extracted from `coordinates[1]`. |
+| `depth` | double | Depth in kilometers. | Extracted from `coordinates[2]`. Nulls filled with 0. |
+
+## 🏗️ Layer: Gold (Analytics)
+
+### 1. `magnitude_categories`
+*Purpose: Categorize earthquakes by severity for trend analysis.*
+
+| Column | Type | Description |
+| :--- | :--- | :--- |
+| `magnitude_category` | string | **Micro** (<1.0), **Minor** (1.0-2.9), **Light** (3.0-4.4), **Moderate** (4.5-5.9), **Strong** (6.0-6.9), **Major** (7.0-7.9), **Great** (≥8.0). |
+| `event_id`, `location`, `event_time`, `depth`, `quake_type` | ... | Inherited from Silver. |
+
+### 2. `daily_counts`
+*Purpose: Time-series analysis of earthquake frequency.*
+
+| Column | Type | Description |
+| :--- | :--- | :--- |
+| `date` | date | Date of the event (UTC). |
+| `daily_count` | long | Total number of quakes on that date. |
+| `max_magnitude` | double | Highest magnitude recorded that day. |
+| `avg_magnitude` | double | Average magnitude for the day. |
+| `avg_depth` | double | Average depth for the day. |
+
+### 3. `regional_hotspots`
+*Purpose: Identify high-risk geographic regions.*
+
+| Column | Type | Description |
+| :--- | :--- | :--- |
+| `region` | string | Extracted region/country name (first part of `location`). |
+| `quake_count` | long | Total quakes in this region. |
+| `max_magnitude` | double | Strongest quake in the region. |
+| `avg_magnitude` | double | Average magnitude in the region. |
+
+### 4. `depth_analysis`
+*Purpose: Correlate depth with magnitude.*
+
+| Column | Type | Description |
+| :--- | :--- | :--- |
+| `depth_category` | string | **Shallow** (0-70km), **Intermediate** (70-300km), **Deep** (300km+). |
+| `quake_count` | long | Total quakes in this depth range. |
+| `avg_magnitude` | double | Average magnitude for this depth. |
+
+---
+
+*Generated for SOBZ Earthquake Analytics.*
