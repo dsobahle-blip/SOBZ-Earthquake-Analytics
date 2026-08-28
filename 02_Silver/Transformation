@@ -1,0 +1,95 @@
+# 02_Silver/silver_transformation.py
+# Purpose: Transform raw JSON (Bronze) into clean, flat Delta table (Silver)
+# Technology: PySpark (Microsoft Fabric Notebook / Spark)
+
+from pyspark.sql import functions as F
+from pyspark.sql.types import DoubleType, TimestampType, StringType
+
+def transform_to_silver(spark):
+    """
+    Reads Bronze table, flattens GeoJSON, cleans data, and saves to Silver.
+    """
+    
+    # 1. Read Bronze Data
+    print("📥 Reading raw data from Bronze layer...")
+    # Replace 'SOBZ_Lakehouse' with your actual Lakehouse name
+    bronze_path = "abfss://SOBZ_Lakehouse.lakehouse.dfs.fabric.microsoft.com/bronze/raw_quakes_2025_2026.json"
+    df_bronze = spark.read.format("delta").load(bronze_path)
+    
+    # If you're testing locally or haven't saved to Delta yet:
+    # df_bronze = spark.read.json("path/to/raw_quakes_2025_2026.json")
+    
+    if df_bronze.rdd.isEmpty():
+        print("⚠️ Bronze layer is empty. Run Bronze ingestion first.")
+        return
+
+    print(f"✅ Loaded {df_bronze.count()} raw records.")
+
+    # 2. Flatten GeoJSON Structure
+    # USGS format: features = [ { properties: {...}, geometry: {...} } ]
+    if "features" in df_bronze.columns:
+        # Explode the features array
+        df = df_bronze.select(F.explode("features").alias("feature"))
+        df = df.select(
+            F.col("feature.properties.*").alias("properties"),
+            F.col("feature.geometry.*").alias("geometry")
+        )
+        df = df.select(
+            F.col("properties.*"),
+            F.col("geometry.*")
+        )
+    else:
+        # If your Bronze table is already the list of features
+        df = df_bronze
+
+    # 3. Clean & Rename Columns
+    df = df.withColumnRenamed("id", "event_id") \
+           .withColumnRenamed("mag", "magnitude") \
+           .withColumnRenamed("place", "location") \
+           .withColumnRenamed("type", "quake_type") \
+           .withColumnRenamed("time", "event_time_ms") \
+           .withColumnRenamed("coordinates", "coord_array")
+    
+    # 4. Extract Coordinates from Array [lon, lat, depth]
+    # GeoJSON: [longitude, latitude, depth]
+    df = df.withColumn("longitude", F.col("coord_array")[0].cast(DoubleType())) \
+           .withColumn("latitude", F.col("coord_array")[1].cast(DoubleType())) \
+           .withColumn("depth", F.col("coord_array")[2].cast(DoubleType())) \
+           .drop("coord_array")
+
+    # 5. Convert Unix Timestamp (ms) to Datetime
+    df = df.withColumn("event_time", F.to_timestamp(F.col("event_time_ms") / 1000.0)) \
+           .drop("event_time_ms")
+
+    # 6. Handle Nulls & Validate
+    # Drop rows with missing magnitude or coordinates
+    df = df.filter(F.col("magnitude").isNotNull() & 
+                   F.col("latitude").isNotNull() & 
+                   F.col("longitude").isNotNull())
+    
+    # Fill depth with 0 if null (common for surface quakes)
+    df = df.na.fill({"depth": 0.0})
+
+    # 7. Deduplicate by event_id
+    df = df.dropDuplicates(["event_id"])
+
+    # 8. Save to Silver Delta Table
+    silver_path = "abfss://SOBZ_Lakehouse.lakehouse.dfs.fabric.microsoft.com/silver/clean_quakes"
+    
+    print("💾 Writing to Silver Delta table...")
+    df.write.format("delta") \
+      .mode("overwrite") \
+      .save(silver_path)
+    
+    print(f"🎉 Silver layer complete! {df.count()} clean records saved.")
+    df.printSchema()
+
+    return df
+
+# Run the transformation
+if __name__ == "__main__":
+    # In Fabric, 'spark' is already available.
+    try:
+        transform_to_silver(spark)
+    except NameError:
+        print("⚠️ 'spark' session not found. Run this in a Fabric Notebook or initialize SparkSession.")
