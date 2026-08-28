@@ -1,0 +1,29 @@
+# 🔄 Pipeline Automation & Orchestration
+
+This folder documents the **Microsoft Fabric Data Pipeline** that automates the entire earthquake data flow.
+
+## 🏗️ Pipeline Architecture
+
+The pipeline orchestrates the **Medallion Architecture** flow:
+
+```mermaid
+graph LR
+    A[Trigger: Schedule] --> B[Notebook: Bronze Ingestion]
+    B --> C[Notebook: Silver Transformation]
+    C --> D[Notebook: Gold Aggregation]
+    D --> E[Power BI: Dataset Refresh]
+    E --> F[Dashboard: Auto-Update]# 🔄 Pipeline Automation & Orchestration
+
+This folder documents the **Microsoft Fabric Data Pipeline** that automates the entire earthquake data flow.
+
+## 🏗️ Pipeline Architecture
+
+The pipeline orchestrates the **Medallion Architecture** flow:
+
+```mermaid
+graph LR
+    A[Trigger: Schedule] --> B[Notebook: Bronze Ingestion]
+    B --> C[Notebook: Silver Transformation]
+    C --> D[Notebook: Gold Aggregation]
+    D --> E[Power BI: Dataset Refresh]
+    E --> F[Dashboard: Auto-Update]
