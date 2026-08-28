@@ -1,0 +1,32 @@
+# 📒 Fabric Notebooks
+
+This folder contains the **Microsoft Fabric Notebooks** (`.ipynb`) used to build the ETL pipeline for the SOBZ Earthquake Analytics project.
+
+## 📂 Notebook List
+
+| Notebook | Purpose | Key Logic |
+| :--- | :--- | :--- |
+| **`Notebook_Bronze.ipynb`** | **Ingestion** | Fetches raw JSON from USGS API and saves to `Files/Bronze/`. |
+| **`Notebook_Silver.ipynb`** | **Transformation** | Flattens GeoJSON, cleans data, handles nulls, saves to `Tables/Silver/`. |
+| **`Notebook_Gold.ipynb`** | **Aggregation** | Creates analytical tables (Magnitude, Daily, Regional, Depth) in `Tables/Gold/`. |
+
+## 🚀 How to Run
+
+1.  **Import**:
+    *   In your **Fabric Workspace**, click **New Item** → **Notebook**.
+    *   Click the **three dots (...)** on the new notebook → **Import from File**.
+    *   Select the corresponding `.ipynb` file from this folder.
+2.  **Configure**:
+    *   Ensure the **Lakehouse ID** and **paths** in the code match your environment.
+    *   Update the `start_date_str` and `end_date_str` in `Notebook_Bronze` if needed.
+3.  **Run**:
+    *   Click **Run All** (or run cell-by-cell).
+    *   Verify the output in the **Lakehouse** (Files and Tables).
+
+## 🛠️ Dependencies
+
+These notebooks use standard **PySpark** and **Fabric** libraries. No additional packages are required.
+
+```python
+# Example import used
+from pyspark.sql import functions as F
