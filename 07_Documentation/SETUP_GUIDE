@@ -1,0 +1,62 @@
+# 🛠️ Setup & Reproduction Guide
+
+This guide explains how to reproduce the **SOBZ Earthquake Analytics** project in your own Microsoft Fabric environment.
+
+## 📋 Prerequisites
+
+-   **Microsoft Fabric Account** (Trial or Paid Capacity).
+-   **Power BI Pro License** (for publishing reports).
+-   **Git** (optional, for cloning).
+-   **Python 3.9+** (optional, for local testing).
+
+## 🚀 Step-by-Step Setup
+
+### 1. Create Workspace & Lakehouse
+1.  Log in to **Microsoft Fabric**.
+2.  Create a new **Workspace** named `SOBZ_Earthquake`.
+3.  Inside the workspace, create a **Lakehouse** named `SOBZ_Lakehouse`.
+4.  Note the **Lakehouse ID** (found in the URL or settings).
+
+### 2. Ingest Data (Bronze Layer)
+1.  Open the `01_Bronze/bronze_ingestion.py` script from this repo.
+2.  Create a new **Notebook** in Fabric.
+3.  Paste the code, updating the `start_date_str` and `end_date_str` as needed.
+4.  Run the notebook.
+    -   *Output*: Raw JSON files in `Files/Bronze/` of your Lakehouse.
+
+### 3. Transform Data (Silver Layer)
+1.  Open the `02_Silver/silver_transformation.py` script.
+2.  Create a new **Notebook**.
+3.  Paste the code, ensuring the `bronze_path` points to your Lakehouse path.
+4.  Run the notebook.
+    -   *Output*: `clean_quakes` Delta table in `Tables/Silver/`.
+
+### 4. Aggregate Data (Gold Layer)
+1.  Open the `03_Gold/gold_transformation.py` script.
+2.  Create a new **Notebook**.
+3.  Paste the code, ensuring the `silver_path` is correct.
+4.  Run the notebook.
+    -   *Output*: 4 Delta tables (`magnitude_categories`, `daily_counts`, etc.) in `Tables/Gold/`.
+
+### 5. Build Power BI Report
+1.  Open **Power BI Desktop**.
+2.  Click **Get Data** → **Microsoft Fabric** → **Lakehouse**.
+3.  Select your `SOBZ_Lakehouse` and connect to the **Gold** tables.
+4.  Build your visualizations (see `05_PowerBI/README.md`).
+5.  Publish to the **Fabric Workspace**.
+
+### 6. Automate (Pipeline)
+1.  Create a **Data Pipeline** in Fabric.
+2.  Add **Notebook Activities** for Bronze, Silver, and Gold in sequence.
+3.  Set a **Schedule Trigger** (e.g., every 6 hours).
+4.  Configure **Dataset Refresh** in Power BI Service to match the pipeline schedule.
+
+## 🐛 Troubleshooting
+
+-   **API Errors**: Check if the USGS API is down or if your date range is invalid.
+-   **Schema Errors**: Ensure the Gold table names match the Power BI data source.
+-   **Permission Errors**: Verify your Fabric workspace permissions.
+
+---
+
+*Need help? Contact [Your Email] or open an Issue on GitHub.*
